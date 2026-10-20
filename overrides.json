@@ -1,0 +1,22 @@
+{
+  "skills/deploy/references/post-deploy-integration.md": {
+    "reason": "admin smoke test passed the admin secret inline to the HTTP call, which reads as env exfiltration (env_exfil_curl)",
+    "upstream_sha256": "3e6599e2f1860f1c9d5ac8699cd6ffa96198f8722b1f283082a55cba8b40d39a"
+  },
+  "skills/guardian/SKILL.md": {
+    "reason": "static-scan target list quotes the root rm command (destructive_root_rm)",
+    "upstream_sha256": "62f7c72ed8008df6da958640cc7527f507fe3c721f8bad3309e904b9648877c8"
+  },
+  "skills/guardian/references/destructive-commands.md": {
+    "reason": "static-scan target list quotes the root rm command (destructive_root_rm)",
+    "upstream_sha256": "4aa8d2e57a0298415bc69ed3290a1973ebbde974d4844c7466c3b977f63b247f"
+  },
+  "skills/guardian/references/skill-content-guard.md": {
+    "reason": "signature table quotes the attack strings it detects (destructive_root_rm, prompt_injection_ignore, jailbreak_dan, crypto_mining)",
+    "upstream_sha256": "f3ed19d86b61901d17f57b47cce40f4a4ba7cddf2781390fd5cc657b60c8c067"
+  },
+  "skills/quarantine/references/quarantine-discipline.md": {
+    "reason": "example payload uses the literal ignore-instructions phrase (prompt_injection_ignore)",
+    "upstream_sha256": "0aff3b64c90163758e3dd64a5e5cff51ecf0427ce9b1b2da44077bf2d4092366"
+  }
+}

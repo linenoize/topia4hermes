@@ -1,0 +1,16 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "topia",
+  "version": "3.9.2",
+  "description": "Topia's 71 engineering-discipline skills (build, debug, review, guardian, plan, and more) packaged for Hermes Agent.",
+  "homepage": "https://github.com/linenoize/topia",
+  "repository": "https://github.com/linenoize/topia4hermes",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "workflow",
+    "tdd",
+    "code-review",
+    "security"
+  ]
+}
