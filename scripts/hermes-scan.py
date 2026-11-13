@@ -9,8 +9,10 @@ exits 1 on a dangerous verdict. Needs Python 3.11+.
 """
 
 import argparse
+import re
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -31,9 +33,26 @@ def main() -> int:
         pkg = Path(tmp) / "tools"
         pkg.mkdir()
         (pkg / "__init__.py").write_text("")
-        for name in MODULES:
-            with urllib.request.urlopen(RAW_URL.format(ref=args.ref, name=name), timeout=30) as resp:
-                (pkg / name).write_bytes(resp.read())
+        # Hermes splits these modules over time (e.g. skills_guard_credentials.py),
+        # so fetch the starting set and then every tools.* module they import.
+        queue, fetched = list(MODULES), set()
+        while queue:
+            name = queue.pop()
+            if name in fetched:
+                continue
+            fetched.add(name)
+            try:
+                with urllib.request.urlopen(RAW_URL.format(ref=args.ref, name=name), timeout=30) as resp:
+                    source = resp.read()
+            except urllib.error.HTTPError as error:
+                # A package or optional import, not a module file. If the scanner
+                # truly needs it, the import below fails and names it.
+                if error.code == 404 and name not in MODULES:
+                    continue
+                raise
+            (pkg / name).write_bytes(source)
+            for module in re.findall(rb"(?:from|import)\s+tools\.(\w+)", source):
+                queue.append(module.decode() + ".py")
         sys.path.insert(0, tmp)
         from tools.plugin_guard import scan_plugin, should_allow_plugin_install
 
