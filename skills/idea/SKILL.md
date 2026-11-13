@@ -39,6 +39,7 @@ Output is a Requirements Document → hand off to topia:plan for implementation 
 - `brainstorm` (L2): when multiple approaches exist for a requirement
 - `design` (L2): when requirements include UI/UX components — hand off visual requirements
 - `problem-solver` (L3): structured reasoning when requirements have conflicting constraints
+- `decision-form` (L3): after the 5 Questions, when scope or NFR choices leave 5+ multiple-choice picks (or the person asks for a form) — never in place of the 5 Questions
 
 ## Called By (inbound)
 
@@ -58,14 +59,13 @@ Output is a Requirements Document → hand off to topia:plan for implementation 
 
 ## Executable Steps
 
-### Step 1.2 — Neural Memory Retrieval (SEARCH)
+### Step 1.2 — Memory Retrieval (SEARCH)
 
-Before eliciting new information, search `topia:neural-memory` for related concepts, prior versions of this idea, or similar features built in other projects.
+Before eliciting new information, search memory for related concepts, prior versions of this idea, or similar features.
 
 1.  **Extract keywords**: Identify core concepts from the user's initial prompt (e.g., "auth", "payment", "RAG").
-2.  **Search Memory**: Query `topia:neural-memory` with these keywords.
-3.  **Optional — agora-code recall**: if the `agora-memory` MCP server is registered, also call its `recall_learnings` tool with the same keywords. Findings from agora-code reflect prior cross-session learnings (decisions, gotchas, rejected approaches) — merge with neural-memory results. Skip silently if MCP unavailable. See `docs/mcp-integrations/agora-code.md`.
-4.  **Synthesize Findings**:
+2.  **Search Memory**: Recall: `topia:recall` with these keywords (or Grep `.topia/` for them).
+3.  **Synthesize Findings**:
     *   If a similar idea exists: *"I found a related idea in memory: [Concept]. We previously decided [Decision]. Should we leverage those patterns or is this a different direction?"*
     *   If technical patterns exist: *"I recall we used [Library/Pattern] for a similar task previously. I'll keep that in mind as a constraint."*
 
@@ -232,6 +232,7 @@ Every question the user answers burns attention you don't get back. Protect it.
    - Wrong framework? → check config files, don't ask.
 4. **Cache the answer.** Write each Q→A pair into the Requirements Document verbatim. If the user restarts the idea session on the same feature, reuse the cached answers — never re-ask what was already answered.
 5. **Bundle yes/no questions after Q1 if the user is concise.** A user who replies "y" / "n" / "skip" in 1-2 words tolerates a bundle. A user who replies with paragraphs wants the slow pace — keep one-at-a-time.
+6. **A form, not a sixth question.** If the person asks for a form, or scope and NFR work leaves 5+ multiple-choice picks you cannot infer, send them all as one form via `topia:decision-form`, each with a recommended default. Never use the form in place of the 5 Questions.
 
 Every Q should earn its slot: removing it must leave the Requirements Document materially worse. If it wouldn't, cut the question.
 
@@ -666,13 +667,13 @@ After the artifact triad is saved, append/update the project glossary `CONTEXT.m
 
 Format reference: [references/context-md-format.md](references/context-md-format.md).
 
-### Step 8 — Neural Memory Persistence (SAVE)
+### Step 8 — Memory Persistence (SAVE)
 
-Once the user approves the Requirements Document, persist the "Idea Artifact" to `topia:neural-memory`.
+Once the user approves the Requirements Document, record the "Idea Artifact".
 
 1.  **Format Memory**: Create a high-signal summary of the idea, core stakeholders, and key strategic decisions.
-2.  **Tag**: Use `[idea, requirements, feature-name]`.
-3.  **Persist**: Call `topia:neural-memory` in Capture Mode.
+2.  **Key**: Use the feature name (e.g., `idea-<feature-name>`).
+3.  **Persist**: Record: `topia:journal` (one `decision` row in `.topia/learnings.jsonl`).
 4.  **Emit**: `idea.captured` signal.
 
 ## Output Format

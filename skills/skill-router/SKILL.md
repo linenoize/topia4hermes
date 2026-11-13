@@ -228,6 +228,7 @@ For users who know exactly what they want:
 | Generate / update docs | `topia:docs` | L2 |
 | Generate leadership package / Jira CSV / User Stories | `topia:documentation` | L2 |
 | Build MCP server | `topia:mcp-builder` | L2 |
+| Docker Compose ops: rebuild / restart / logs / health / prune, server.sh scripts, `.env` vs `.env.example` keys, published ports | `topia:stack` | L2 |
 | Red-team / challenge a plan / stress-test | `topia:adversary` | L2 — requires opus |
 | Port / graft from repo / copy from external repo | `topia:integrate` | L2 — challenge gate before code |
 | Map architecture / reverse-engineer codebase / steel threads / legacy codebase / how does this repo work | `topia:architecture-mapper` | L2 — read-only mapping to `docs/architecture/` |
@@ -250,13 +251,14 @@ These are rarely invoked directly — they're called by higher-level skills:
 | `topia:research` / `topia:docs-seeker` | any | Look up docs |
 | `topia:session-bridge` | build, team | Save context (in-session state handoff) |
 | `topia:journal` | build, team | Persistent work log within a session |
-| `topia:neural-memory` | build, team, any L1/L2 | Cross-session cognitive persistence via Neural Memory MCP — semantic complement to session-bridge and journal |
-| `topia:recall` | build, plan, recon, session-start | Unified read-only recall across `.topia/`, `.remember/`, neural-memory, agora-memory |
+| `topia:neural-memory` | user | Optional; only if the Neural Memory MCP is installed |
+| `topia:recall` | build, plan, recon, session-start | Read-only recall from `.topia/` and `.remember/` files |
 | `topia:git` | build, scaffold, team, launch | Semantic commits, PRs, branches |
 | `topia:doc-processor` | docs, marketing | PDF/DOCX/XLSX/PPTX generation |
 | "Done" / "ship it" / "xong" | — | `topia:verification` → commit |
-| "recall", "what did we do", "session context", "pick up where we left off" | `topia:recall` | Unified cross-source memory read |
-| "remember", "brain", "nmem", "cross-project memory", "store learning" | `topia:neural-memory` | Persist or query semantic graph memory |
+| "recall", "what did we do", "session context", "pick up where we left off", "where did we leave off", "where were we", "what's left", "resume", or "status" as the whole prompt | `topia:recall` | Unified cross-source memory read: where work stands and what is left. Not "git status", "HTTP status" or a status bar |
+| "remember this", "store learning", "note this decision" | `topia:journal` | Record to `.topia/` files |
+| "nmem", "neural memory" | `topia:neural-memory` | Optional; only if the Neural Memory MCP is installed |
 
 #### Domain Extension Packs (L4)
 
@@ -295,6 +297,7 @@ When the routed skill produces file changes, the **owner skill's constraints** a
 | `*.test.*`, `*.spec.*`, `__tests__/` | `topia:test` | Test patterns, assertions, no `test.skip`, coverage rules |
 | `migrations/`, `schema.*`, `*.prisma` | `topia:db` | Migration safety, rollback script, parameterized queries |
 | `Dockerfile`, `*.yml` (CI/CD), `terraform/` | `topia:deploy` | Deployment checklist, no hardcoded secrets |
+| `compose*.y*ml`, `docker-compose*.y*ml`, `server.sh`, `server.ps1` | `topia:stack` | Ports rule, no volume deletion without a named request, env keys only |
 | `docs/*.md`, `README.md`, `CHANGELOG.md` | `topia:docs` | Documentation patterns, no stale references |
 | `SKILL.md`, `PACK.md` | `topia:skill-forge` | Skill template compliance, frontmatter validation |
 | `.env*`, `*secret*`, `*credential*` | `topia:guardian` | Security scan mandatory, never commit secrets |
@@ -316,7 +319,7 @@ Within same layer: process skills > implementation skills
 
 Example: "Add auth and deploy it"
   → topia:build (add auth) FIRST
-  → topia:deploy SECOND (after build completes)
+  → topia:deploy SECOND (after build's report arrives — build runs in the background, see Step 4.5)
 
 Example: "Fix the login bug and add tests"
   → topia:debug (diagnose) FIRST
@@ -398,18 +401,33 @@ Once routed:
 3. Follow the skill's workflow exactly
 4. If the skill has a checklist/phases, track via TodoWrite
 
-### Step 5 — Post-Completion Neural Memory Capture
+### Step 4.5 — Forked Skills Run in the Background (Claude Code)
 
-After ANY L1 or L2 workflow completes (build, team, launch, rescue, scaffold, plan, design, debug, fix, review, deploy, guardian, readiness, perf, db, idea, docs, mcp-builder, integrate, etc.):
+`topia:build`, `topia:team`, `topia:rescue` and `topia:launch` set `context: fork`. Since Claude Code 2.1.218 a forked skill runs in the background by default. The Skill call returns at once. The skill's report arrives later as a task notification. The fork cannot see this conversation and cannot ask the person anything.
 
-1. Trigger `topia:neural-memory` in **Capture Mode** automatically
-2. Save 2–5 memories covering: key decisions made, bugs fixed, patterns applied, architectural choices
-3. Use rich cognitive language (causal, temporal, decisional) — NOT flat facts
-4. Tag memories with [project-name, skill-used, topic]
-5. This step is MANDATORY even if the user did not ask for it
-6. Exception: skip if the workflow produced zero technical output (e.g., only a clarifying question was asked)
+**Before invoking:**
+1. Put what the fork needs in the skill arguments: the task, relevant file paths, and any answers the person already gave. For build that includes `success: …`, `don't change: …`, `just do it`, and for a bugfix the ticket ID, `branch:`, `commit:`. See each skill's "Background Runs" section.
+2. If an answer is clearly needed and the person is here, ask it now, before invoking. A bugfix ticket ID is the common case.
 
-**Capture Mode trigger phrase**: "Session artifact — capturing to Neural Memory."
+**After invoking:**
+3. Say in one line that it is running in the background and the report will follow. Do not claim any result yet.
+4. Do not start a step that needs its output in the same turn: completion-gate, deploy, review of its diff, the Step 5 record.
+5. You may help with other work meanwhile. Do not edit files the run is changing. Do not commit, checkout, merge, reset or stash until its report arrives.
+6. If asked for progress, say it is still running. `.topia/progress.md` may help. Never make up results.
+
+**When the report arrives:**
+7. `NEEDS_CONTEXT`, or a **Decision Needed** block: show the person the question and options. After they answer, re-invoke the same skill with the report's resume line plus their answer. Never approve a plan, a checkpoint, or a deploy for them.
+8. launch `ready-to-deploy`: show the report and its resume line. The person types it; launch cannot be model-invoked.
+9. Otherwise the workflow has completed. Now run Step 5 and the one-hop recommendation.
+
+Claude Code waits for the result in the same turn instead under `claude -p`, the Agent SDK, `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`, or when the same skill is already running. Steps 7-9 still apply, just sooner.
+
+### Step 5 — Post-Completion Record
+
+After an L1 or L2 workflow that made a decision worth keeping (an architecture choice, a root cause, a rejected approach):
+
+1. Record: `topia:journal` (or `topia:session-bridge` for progress and checkpoints)
+2. Skip when nothing durable came out of the work. Commits are recorded automatically by the `commit-memory` hook.
 
 ## Routing Exceptions
 
@@ -430,7 +448,7 @@ When a previous skill's output contains a `chain_metadata` block in the conversa
 1. **Read `chain_metadata.suggested_next`** — these are data-driven recommendations from the skill that just ran. They have MORE context than the hardcoded table below.
 2. **Read `chain_metadata.status`** — override suggestion logic based on outcome:
    - `BLOCKED` → suggest `debug` or `fix` regardless of what the hardcoded table says
-   - `NEEDS_CONTEXT` → suggest `recon` or `research`
+   - `NEEDS_CONTEXT` → if the report has a Decision Needed block or resume line, relay it per Step 4.5 (no suggestion); otherwise suggest `recon` or `research`
    - `DONE_WITH_CONCERNS` → suggest `review` or `guardian`
 3. **Read `chain_metadata.domain`** — trigger L4 pack auto-suggest (see below)
 4. **Forward `chain_metadata.exports`** — when announcing the suggestion, mention what data is available: "Review can use the 5 changed files and test results from build."
@@ -545,6 +563,8 @@ For multi-skill chains:
 | False multi-match loads several overlapping skills | HIGH | Step 2.5: Stack Brief + primary-only invoke |
 | Over-routing trivial tasks (e.g., "what time is it") | LOW | Routing Exceptions section covers non-technical queries |
 | Skill invocation adds latency to simple tasks | LOW | Acceptable trade-off: correctness > speed |
+| Treating a background fork's Skill call as finished and running the next chain step on no output | HIGH | Step 4.5: wait for the task notification before follow-ups |
+| Answering a fork's plan or deploy approval on the person's behalf | CRITICAL | Step 4.5: relay Decision Needed blocks; the person decides |
 
 ## Done When
 

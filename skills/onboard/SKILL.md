@@ -29,6 +29,7 @@ Auto-generate project context for AI sessions. Scans the codebase and creates a 
 - `guardian-env` (L3): validate developer environment (runtime versions, required tools, env vars) so the onboarded project is actually runnable
 - `autopsy` (L2): when project appears messy or undocumented — health assessment
 - `architecture-mapper` (L2): optional escalation for complex/legacy repos lacking `docs/architecture/` (see Escalation below)
+- `stack` (L2): project has a compose file — record services, profiles and health; check `.env` keys against `.env.example`
 
 ## Called By (inbound)
 
@@ -303,15 +304,30 @@ node skills/onboard/scripts/context-budget.js --root <project-root> --apply <ids
 
 **Skip AskQuestion if**: `advisory: false` (MCP ≤80 and CLAUDE.md ≤150 lines).
 
-### Step 6d.1 — Seed agora-memory (when MCP registered)
+### Step 6d.1 — Memory (no setup)
 
-If `agora-memory` is in the project's MCP config and `agora-code` is on PATH:
+Memory works once `.topia/` exists. Session start shows the newest entries, `topia:recall` reads the rest, and the `commit-memory` hook records each commit in `.topia/learnings.jsonl`. Do not ask the user to set up or confirm memory.
 
+### Step 6d.1b — Parked MCP servers and plugins (Claude Code only)
+
+Servers and plugins that aren't needed everywhere can be parked in the user's catalog (`~/.claude/topia/mcp-catalog.json`, outside any repo) instead of loading in every session. Topia needs none of them. This step offers the ones that fit this project.
+
+1. Find candidates (skip this step silently if the catalog doesn't exist or nothing matches):
 ```bash
-node compiler/bin/topia.js memory seed
+node skills/onboard/scripts/mcp-catalog.js match --root <project-root>
 ```
+2. If `matches` is not empty, use **AskUserQuestion** once, `multiSelect: true`:
+   - Question: **"These parked tools may fit this project. Turn any on here? (Only this project; nothing changes elsewhere.)"**
+   - One option per match: label = name, description = `about` + "Matched: " + `why`.
+   - The tool adds "Other"; don't add a "None" option, since selecting nothing means none.
+3. Apply only what the person picked. The script runs the `claude` CLI without a shell, so JSON and Windows paths arrive unchanged:
+```bash
+node skills/onboard/scripts/mcp-catalog.js apply --names <picked,comma,separated>
+```
+   Servers are added at local scope (private to this person, this project). Plugins are enabled at local scope. A new server loads in the next session.
+4. Report `### Parked tools` with what was turned on, or "none fit" in one line.
 
-Imports decisions, ADRs, and learnings from `.topia/` into agora's SQLite store (idempotent). Skip silently if agora is not installed — file-based `.topia/` remains source of truth.
+To park a user-scope server yourself (for example one that loads everywhere but is only used in one project): `node skills/onboard/scripts/mcp-catalog.js park <server> --about "<what it does>" --signals "*.ext,folder/,keyword"`. It saves the exact config to the catalog first, then removes it from user scope. To park a plugin, disable it at user scope (`claude plugin disable <plugin> --scope user`) and add an entry under `plugins` in the catalog with `about` and `signals`.
 
 ### Step 6d.2 — Topia mods (Claude Code only)
 
