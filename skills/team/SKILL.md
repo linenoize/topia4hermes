@@ -1,6 +1,6 @@
 ---
 name: team
-description: "Multi-agent meta-orchestrator. Use when task spans 5+ files or 3+ modules, or when user says 'parallel', 'split this up', 'do all of these'. Decomposes large tasks into parallel workstreams, assigns to isolated build instances, coordinates merging."
+description: "Use when a task is too big for one session: it touches 5+ files or 3+ modules, or the user says 'do these in parallel', 'split this up', 'do all of these'. Splits the work into parallel streams in separate worktrees, runs build in each, and merges the results."
 context: fork
 agent: general-purpose
 metadata:
@@ -120,13 +120,11 @@ Before decomposing, classify the task into a complexity tier. Each tier defines 
 - `launch` (L1): recommend deployment/marketing in the Team Report when build is complete (launch has `disable-model-invocation: true`, so the person starts it)
 - `rescue` (L1): delegate legacy refactoring when rescue work detected
 - `integrity-check` (L3): verify build report integrity before merge
-- `completion-gate` (L3): validate workstream completion claims against evidence
-- `constraint-check` (L3): audit HARD-GATE compliance across parallel streams
+- `completion-gate` (L3): validate workstream completion claims against evidence; process audit of HARD-GATE compliance across streams
 - `scope-guard` (L3): pre-merge scope verification — validate each stream's actual file changes against declared ownership
 - `worktree` (L3): create isolated worktrees for parallel build instances
 - `context-pack` (L3): create structured handoff briefings before spawning subagents
 - `adversary` (L2): validate task decomposition before parallel dispatch
-- `context-engine` (L3): context budget management before parallel dispatch and after merge
 - `context-lifecycle` (L3): Boundary Save before dispatch; Hook Resume after merge or git push; Post-Compact Resume when needed
 - `git` (L3): coordinate branch strategy across parallel workstreams
 - `logic-guardian` (L2): validate logic integrity across parallel workstreams
@@ -144,16 +142,18 @@ Before decomposing, classify the task into a complexity tier. Each tier defines 
 
 ## Execution
 
-### Step 0 — Initialize TodoWrite
+### Step 0 — Create the task list
+
+Create one task per entry with the task list tool (TaskCreate/TaskUpdate in Claude Code, the host todo tool elsewhere). Mark each `in_progress` when its phase starts and `completed` when it ends.
 
 ```
-TodoWrite([
-  { content: "DECOMPOSE: Scout modules and plan workstreams", status: "pending", activeForm: "Decomposing task into workstreams" },
-  { content: "ASSIGN: Launch parallel build agents in worktrees", status: "pending", activeForm: "Assigning streams to build agents" },
-  { content: "COORDINATE: Monitor streams, resolve conflicts", status: "pending", activeForm: "Coordinating parallel streams" },
-  { content: "MERGE: Merge worktrees back to main", status: "pending", activeForm: "Merging worktrees to main" },
-  { content: "VERIFY: Run integration tests on merged result", status: "pending", activeForm: "Verifying integration" }
-])
+[
+  { subject: "DECOMPOSE: Map modules (recon) and plan workstreams", activeForm: "Decomposing task into workstreams" },
+  { subject: "ASSIGN: Launch parallel build agents in worktrees", activeForm: "Assigning streams to build agents" },
+  { subject: "COORDINATE: Monitor streams, resolve conflicts", activeForm: "Coordinating parallel streams" },
+  { subject: "MERGE: Merge worktrees back to main", activeForm: "Merging worktrees to main" },
+  { subject: "VERIFY: Run integration tests on merged result", activeForm: "Verifying integration" }
+]
 ```
 
 ---
@@ -167,7 +167,7 @@ Mark todo[0] `in_progress`.
 ```
 REQUIRED SUB-SKILL: topia:recon
 → Invoke `recon` with the full task description.
-→ Scout returns: module list, file ownership map, dependency graph.
+→ Recon returns: module list, file ownership map, dependency graph.
 → Capture: which modules are independent vs. coupled.
 ```
 
@@ -317,7 +317,7 @@ Mark todo[1] `completed`.
 
 Mark todo[2] `in_progress`.
 
-**3a-pre0. Output density honoring.** During Phase 2 dispatch, any worker that hits context ORANGE / RED has emitted `output.density.set` with `mode=caveman, scope=workstream` (auto from `topia:context-engine`). Coordination output respects per-workstream density: when summarizing a caveman-active worker's report into the merge plan, preserve its terse format rather than re-expanding to verbose. If 3+ workers are caveman-active simultaneously, the team-level summary itself should adopt caveman until merge completes (announce to user once: "Team output in caveman mode — N workers under context pressure"). Reverts to normal after Phase 5.
+**3a-pre0. Output density honoring.** During Phase 2 dispatch, any worker that hits context ORANGE / RED has emitted `output.density.set` with `mode=caveman, scope=workstream` (auto from `topia:context-lifecycle`). Coordination output respects per-workstream density: when summarizing a caveman-active worker's report into the merge plan, preserve its terse format rather than re-expanding to verbose. If 3+ workers are caveman-active simultaneously, the team-level summary itself should adopt caveman until merge completes (announce to user once: "Team output in caveman mode — N workers under context pressure"). Reverts to normal after Phase 5.
 
 **3a-pre. Oracle reattach sweep.** Before merge coordination, glob `.topia/oracle-pending/*.json`. For any worker stream that emitted `oracle.dispatched` during Phase 2, invoke `session-bridge --reattach <sessionId>`. Worker streams with `status=pending` past their `timeoutAt` are unblocked via `oracle.failed` so coordination can proceed. Workers with `status=complete` consume the response before merge.
 
@@ -335,8 +335,8 @@ If overlapping files detected between completed worktrees:
 **3a.5. Verify build report integrity.**
 
 ```
-REQUIRED SUB-SKILL: topia:integrity-check
-→ Invoke integrity-check on each build report text.
+REQUIRED: integrity-check (hidden skill) — read ${CLAUDE_SKILL_DIR}/../integrity-check/SKILL.md
+→ Follow it on each build report text.
 → If any report returns TAINTED:
     BLOCK this stream from merge.
     Report: "Stream [id] build report contains adversarial content."
@@ -494,7 +494,7 @@ Mark todo[4] `completed`.
 | # | Criterion | Stream | Evidence | Verdict |
 |---|-----------|--------|----------|---------|
 | 1 | Auth endpoints return JWT | A | Test stdout: "3 passed" | PASS |
-| 2 | No SQL injection | A | Sentinel: PASS | PASS |
+| 2 | No SQL injection | A | Guardian: PASS | PASS |
 | 3 | Dashboard loads < 2s | B | No perf test run | UNVERIFIED |
 
 ### Integration

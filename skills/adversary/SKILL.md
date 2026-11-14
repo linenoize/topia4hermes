@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: "Pre-implementation red-team analysis. Use when a plan is high-risk, critical path, or expensive to reverse. Challenges plans before code is written — finds edge cases, security holes, scalability bottlenecks, error propagation risks, and integration conflicts. Catches flaws at plan time (10x cheaper than post-implementation)."
+description: "Use when a plan is risky, on a critical path, or expensive to undo, before code is written: 'poke holes in this plan', 'red-team this design', 'what could go wrong'. Looks for edge cases, security holes, scaling limits and integration conflicts. Plans only; for existing code use review."
 metadata:
   author: topia
   version: "0.2.0"
@@ -18,7 +18,7 @@ metadata:
 
 Pre-implementation adversarial analysis. After a plan is approved but BEFORE code is written, adversary stress-tests the plan across 5 dimensions: edge cases, security, scalability, error propagation, and integration risk. It does NOT fix or redesign — it reports weaknesses so the plan can be hardened before implementation begins.
 
-This fills the only gap in the plan-to-ship pipeline: all other quality skills (review, preflight, sentinel) operate AFTER code exists. Catching a flaw in a plan costs minutes; catching it in implementation costs hours.
+This fills the only gap in the plan-to-ship pipeline: all other quality skills (review, verification, guardian) operate AFTER code exists. Catching a flaw in a plan costs minutes; catching it in implementation costs hours.
 
 <HARD-GATE>
 adversary MUST NOT approve a plan without at least one specific challenge per dimension analyzed.
@@ -37,9 +37,9 @@ Every finding MUST reference the specific plan section, file, or assumption it c
 - `guardian` (L2): deep security scan when adversary identifies auth/crypto/payment attack vectors in the plan
 - `perf` (L2): scalability analysis when adversary identifies potential bottleneck patterns
 - `recon` (L2): find existing code that might conflict with planned changes
-- `docs-seeker` (L3): verify framework/API assumptions in the plan are correct and current
+- `research` (L3): API docs mode — verify framework/API assumptions in the plan are correct and current
 - `hallucination-guard` (L3): verify that APIs, packages, or patterns referenced in the plan actually exist
-- `context-engine` (L3): (oracle-mode) emit `context.preview` before bundle build to gate token cost
+- `context-lifecycle` (L3): (oracle-mode) emit `context.preview` before bundle build to gate token cost
 - `session-bridge` (L3): (oracle-mode) detach protocol when target model is opus-class for non-blocking dispatch
 
 ## Called By (inbound)
@@ -55,9 +55,9 @@ Every finding MUST reference the specific plan section, file, or assumption it c
 ## Cross-Hub Connections
 
 - `adversary` ← `build` — plan produced → adversary challenges it → hardened plan feeds Phase 3
-- `adversary` → `guardian` — security attack vector identified → sentinel validates depth
+- `adversary` → `guardian` — security attack vector identified → guardian validates depth
 - `adversary` → `perf` — scalability concern raised → perf quantifies the bottleneck
-- `adversary` → `scout` — integration risk flagged → scout finds affected code
+- `adversary` → `recon` — integration risk flagged → recon finds affected code
 - `adversary` → `plan` — CRITICAL findings → plan revises before implementation
 
 ## Execution
@@ -66,7 +66,7 @@ Every finding MUST reference the specific plan section, file, or assumption it c
 
 1. Read the plan document (from `.topia/features/<name>/plan.md`, phase file, or user-specified path)
 2. Read the requirements document if it exists (`.topia/features/<name>/requirements.md` from idea)
-3. Use `scout` to identify existing code files that the plan will touch or depend on
+3. Use `recon` to identify existing code files that the plan will touch or depend on
 4. Identify the plan's core assumptions — what MUST be true for this plan to work?
 
 ### Step 1: Edge Case Analysis
@@ -240,7 +240,7 @@ Trigger: plan involves auth, crypto, payment, or user data handling.
 
 **Triggered by**: `agent.stuck` signal — emitted by `debug` (after 3 disproved hypotheses) or `fix` (after 2+ failed attempts on the same file).
 
-**Purpose**: Break confirmation-bias loops. The same agent that read `auth.ts` 3 times has formed a theory it cannot un-form. Oracle-mode dispatches a stateless second-model pass with explicit "no prior context" framing, breaking the semantic loop that `scout`'s zoom-out mode (structural pivot) cannot.
+**Purpose**: Break confirmation-bias loops. The same agent that read `auth.ts` 3 times has formed a theory it cannot un-form. Oracle-mode dispatches a stateless second-model pass with explicit "no prior context" framing, breaking the semantic loop that `recon`'s zoom-out mode (structural pivot) cannot.
 
 **When NOT to use**:
 - Single hypothesis cycle — escalate only after 3 cycles in `debug` or 2 attempts in `fix`
@@ -249,7 +249,7 @@ Trigger: plan involves auth, crypto, payment, or user data handling.
 
 **Protocol**:
 
-1. **Pre-bundle gate** — emit `context.preview` to `context-engine` first; abort if action=block
+1. **Pre-bundle gate** — emit `context.preview` via `context-lifecycle` (Cost Preview) first; abort if action=block
 2. **Build context bundle** — see `references/context-bundle-format.md` for exact format
 3. **Dispatch** — emit `oracle.dispatched` signal; route via `session-bridge` detach if target model is opus-class (non-blocking)
 4. **Wait for response** — synchronous if model is sonnet-class, polled via `.topia/oracle-pending/<id>.json` if opus-class
@@ -289,11 +289,11 @@ See `references/oracle-mode.md` for the full protocol and integration with `debu
 1. MUST challenge every plan — no rubber-stamping. At minimum, one finding per analyzed dimension
 2. MUST NOT modify the plan or write code — adversary is read-only analysis
 3. MUST reference specific plan sections or existing code for every finding
-4. MUST escalate to sentinel when auth/crypto/payment attack vectors are identified
+4. MUST escalate to guardian when auth/crypto/payment attack vectors are identified
 5. MUST use concrete attack scenarios, not vague warnings ("could be a problem" is NOT a finding)
 6. MUST NOT block on MEDIUM/LOW findings — only CRITICAL and HIGH trigger REVISE verdict
 7. MUST include Strength Notes — adversary finds weaknesses AND acknowledges what's well-designed
-8. (oracle-mode) MUST emit `context.preview` BEFORE building the bundle — abort if context-engine action=block
+8. (oracle-mode) MUST emit `context.preview` BEFORE building the bundle — abort if context-lifecycle action=block
 9. (oracle-mode) MUST validate every Oracle reply citation against the provided files — reject uncited claims as `oracle.failed`
 
 ## Nexus Gates
@@ -308,11 +308,11 @@ See `references/oracle-mode.md` for the full protocol and integration with `debu
 | Failure Mode | Severity | Mitigation |
 |---|---|---|
 | Over-challenging — nitpicking every line of the plan | HIGH | Rigor filter: only findings you can justify with specific references. Skip theoretical 3+ condition chains |
-| False security alarms — flagging secure patterns as vulnerable | HIGH | Call sentinel for validation before reporting security findings as CRITICAL |
+| False security alarms — flagging secure patterns as vulnerable | HIGH | Call guardian for validation before reporting security findings as CRITICAL |
 | Analysis paralysis — too many findings block all progress | MEDIUM | Max 3 CRITICAL + 5 HIGH. If more found, consolidate or prioritize top impact |
-| Missing context — challenging plan without understanding existing codebase | HIGH | Step 0 MUST load existing code context via scout before challenging |
+| Missing context — challenging plan without understanding existing codebase | HIGH | Step 0 MUST load existing code context via recon before challenging |
 | Scope creep — reviewing existing code quality instead of plan quality | MEDIUM | Adversary reviews THE PLAN, not the codebase. Existing code is context only |
-| Redundancy with review/preflight — duplicating post-implementation checks | MEDIUM | Adversary operates PRE-implementation only. Never run adversary on existing code |
+| Redundancy with review/verification — duplicating post-implementation checks | MEDIUM | Adversary operates PRE-implementation only. Never run adversary on existing code |
 | (oracle-mode) Bundle exceeds token cap — caller didn't pTopia | HIGH | Caller MUST run `context.preview` first; adversary fails fast with `oracle.failed` instead of silently truncating signal |
 | (oracle-mode) Oracle reply has no citations — model improvised | CRITICAL | Reject reply with `oracle.failed`. Primary agent continues without second opinion (better than acting on hallucination) |
 | (oracle-mode) Loop: oracle reply triggers another `agent.stuck` | HIGH | Cap at 1 oracle dispatch per primary-agent stuck cycle. Subsequent stucks must escalate to user |
@@ -321,7 +321,7 @@ See `references/oracle-mode.md` for the full protocol and integration with `debu
 
 - All relevant dimensions analyzed (minimum: edge cases + security + integration)
 - Every finding references specific plan section or codebase file
-- Security-sensitive plans escalated to sentinel (or confirmed not security-relevant)
+- Security-sensitive plans escalated to guardian (or confirmed not security-relevant)
 - Verdict rendered: REVISE, HARDEN, or PROCEED
 - Findings formatted for consumption by build Phase 3 (if PROCEED) or plan (if REVISE)
 - Strength Notes section acknowledges well-designed aspects of the plan

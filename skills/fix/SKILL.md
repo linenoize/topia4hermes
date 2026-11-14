@@ -1,6 +1,6 @@
 ---
 name: fix
-description: "Apply code changes and fixes. Writes implementation code, applies bug fixes, and verifies changes with tests. Core action hub in the Topia nexus."
+description: "Use when the change is already known and only needs applying: a diagnosis from debug, review findings, or a small edit like 'change the timeout to 30s'. Edits the code and runs the tests. Does not investigate causes (debug) or plan multi-step features (build)."
 metadata:
   author: topia
   version: "1.0.0"
@@ -9,7 +9,7 @@ metadata:
   group: development
   tools: "Read, Write, Edit, Bash, Glob, Grep"
   emit: code.changed, agent.stuck
-  listen: bug.diagnosed, review.issues, readiness.blocked, security.blocked, oracle.response
+  listen: bug.diagnosed, review.issues, verification.blocked, security.blocked, oracle.response
 ---
 
 # fix
@@ -37,7 +37,7 @@ If unsure whether the test is wrong or the implementation is wrong → call `top
 - `test` (L2): verify fix with tests after applying changes
 - `review` (L2): self-review for complex or risky fixes
 - `verification` (L3): validate fix doesn't break existing functionality
-- `docs-seeker` (L3): check correct API usage before applying changes
+- `research` (L3): API docs mode — check correct API usage before applying changes
 - `hallucination-guard` (L3): verify imports after code changes
 - `logic-guardian` (L2): pre-edit gate before modifying manifest-listed logic files
 - `recon` (L2): find related code before applying changes
@@ -144,7 +144,7 @@ When fix is called repeatedly (e.g., by build Phase 4, or iterative fix loops), 
 **Thresholds:**
 - **>20% WTF-likelihood**: STOP fixing. Report current state to build/user with: "Quality decay detected — continued fixes risk introducing more bugs than they resolve. {N} fixes applied, {score}% risk. Recommend: commit current progress, re-assess remaining issues."
 - **Hard cap: 30 fixes per session** — regardless of score. After 30, STOP and report.
-- **2+ consecutive fixes on the same file all failed**: emit `agent.stuck` signal. `scout` zoom-out mode (structural pivot) and `adversary` oracle-mode (semantic pivot via stateless second-model dispatch) both listen and fire in parallel. If `oracle.response` arrives with confidence=high, apply its recommended edit (still routes through normal validation gates).
+- **2+ consecutive fixes on the same file all failed**: emit `agent.stuck` signal. `recon` zoom-out mode (structural pivot) and `adversary` oracle-mode (semantic pivot via stateless second-model dispatch) both listen and fire in parallel. If `oracle.response` arrives with confidence=high, apply its recommended edit (still routes through normal validation gates).
 
 **Reset conditions:** WTF-likelihood resets to 0% when:
 - User explicitly says "continue fixing"
@@ -183,7 +183,7 @@ If `topia:debug` left `#region agent-debug` markers in the code:
 Verify correctness of the changes just made.
 
 - Call `topia:hallucination-guard` to verify all imports introduced or modified are real and correctly named
-- Call `topia:docs-seeker` if any external API, library method, or SDK call was added or changed
+- Call `topia:research` (API docs mode) if any external API, library method, or SDK call was added or changed
 - For complex or risky fixes (auth, data mutation, async logic): call `topia:review` for a full quality check
 
 ### Step 6b: Capture Fix Pattern
@@ -204,7 +204,7 @@ Produce a structured summary of all changes made.
 2. MUST have a diagnosis (from debug or clear error) before applying fixes
 3. MUST run tests after each fix attempt — never batch multiple untested changes
 4. MUST NOT exceed 3 fix attempts — if 3 fixes fail, re-diagnose via topia:debug (which will classify: wrong approach → brainstorm rescue, wrong design → plan redesign)
-5. MUST follow project conventions found by scout — don't invent new patterns
+5. MUST follow project conventions found by recon — don't invent new patterns
 6. MUST NOT add unplanned features while fixing — fix only what was diagnosed
 7. MUST track fix attempt number — this feeds debug's 3-Fix Escalation classification
 8. MUST preserve `#region agent-debug` markers until fix is fully verified — cleanup only after tests pass
@@ -214,7 +214,7 @@ Produce a structured summary of all changes made.
 | Change Type | Action |
 |-------------|--------|
 | Bug fix (diagnosed cause) | Fix it |
-| Security fix (found during fix) | Fix it + flag to sentinel |
+| Security fix (found during fix) | Fix it + flag to guardian |
 | Blocking issue (can't complete fix without) | Fix it + document in report |
 | Unrelated improvement | **STOP — create separate task** |
 | Architectural change | **STOP — escalate to build/plan** |

@@ -4,7 +4,7 @@
 
 Break the confirmation-bias loop that traps a single agent reading the same files repeatedly. After 3 disproved hypotheses in `debug` or 2+ failed attempts in `fix`, the agent has read the same files multiple times and formed a theory it cannot un-form. Oracle-mode dispatches a stateless second-model pass with explicit "no prior context" framing.
 
-This is a **semantic** pivot. `scout`'s zoom-out mode is the **structural** pivot (look at adjacent modules). Both fire on the same `agent.stuck` signal; both run; the agent receives both perspectives.
+This is a **semantic** pivot. `recon`'s zoom-out mode is the **structural** pivot (look at adjacent modules). Both fire on the same `agent.stuck` signal; both run; the agent receives both perspectives.
 
 ## When to Dispatch
 
@@ -25,7 +25,7 @@ Oracle-mode listens to `agent.stuck` and starts the dispatch flow automatically.
 
 ### 1. Pre-bundle gate
 
-Emit `context.preview` to `context-engine` with the planned file list and prompt. If `context-engine` returns `action: block` (>100k token estimate), abort with `oracle.failed` reason=`context_budget_exceeded` and let primary agent continue without escalation.
+Emit `context.preview` via `context-lifecycle` (Cost Preview) with the planned file list and prompt. If it returns `action: block` (>100k token estimate), abort with `oracle.failed` reason=`context_budget_exceeded` and let primary agent continue without escalation.
 
 ### 2. Build the bundle
 
@@ -72,7 +72,7 @@ debug Phase 3 (3rd disproved):
   emit agent.stuck
   ↓
 adversary oracle-mode (this skill):
-  emit context.preview → context-engine
+  emit context.preview → context-lifecycle
   emit oracle.dispatched → session-bridge (if opus)
   ... reply ...
   emit oracle.response

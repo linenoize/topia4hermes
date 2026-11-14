@@ -5,7 +5,7 @@
   },
   "skills/guardian/SKILL.md": {
     "reason": "static-scan target list quotes the root rm command (destructive_root_rm)",
-    "upstream_sha256": "cefda12acbc7759641975f1dbaebe7f4a7a6caf445ede72f8d15e5b6966d2df0"
+    "upstream_sha256": "2462a0b1a9fb539d8f63d8fb834230fd9eecc2f13b8424013b39e880603ead38"
   },
   "skills/guardian/references/destructive-commands.md": {
     "reason": "static-scan target list quotes the root rm command (destructive_root_rm)",
@@ -13,14 +13,10 @@
   },
   "skills/guardian/references/skill-content-guard.md": {
     "reason": "signature table quotes the attack strings it detects (destructive_root_rm, prompt_injection_ignore, jailbreak_dan, crypto_mining)",
-    "upstream_sha256": "f3ed19d86b61901d17f57b47cce40f4a4ba7cddf2781390fd5cc657b60c8c067"
+    "upstream_sha256": "e0c5ffb87e364a9d62d23850e5d1df8e2cf85b64c145a21c35d06a81e9eaa18c"
   },
   "skills/quarantine/references/quarantine-discipline.md": {
     "reason": "example payload uses the literal ignore-instructions phrase (prompt_injection_ignore)",
-    "upstream_sha256": "0aff3b64c90163758e3dd64a5e5cff51ecf0427ce9b1b2da44077bf2d4092366"
-  },
-  "skills/stack/SKILL.md": {
-    "reason": "sharp-edges row warning against printing .env quoted the cat command itself (read_secrets_file)",
-    "upstream_sha256": "e30fcea352e63c4f4cf044217f4b858fa8a94c2404b0fb0b0f1348c4a68507dc"
+    "upstream_sha256": "359e09b54d696115318c147f8563729bc131f6296798b87b27f2f13b9b51b346"
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: recon
-description: "Fast codebase scanner. Use when any skill needs codebase context. Finds files, patterns, dependencies, project structure. Pure read-only — never modifies files."
+description: "Use when a task needs a quick map of the codebase before planning, fixing or reviewing: stack, entry points, conventions, where a feature lives. Read-only. Unlike the built-in Explore agent, it returns a fixed-format project map that plan, build and review read."
 metadata:
   author: topia
   version: "0.4.0"
@@ -35,14 +35,16 @@ Map the project layout:
    - `go.mod` → Go
    - `pom.xml` / `build.gradle` → Java
 
+Track progress with the task list tool (TaskCreate/TaskUpdate in Claude Code, the host todo tool elsewhere):
+
 ```
-TodoWrite: [
-  { content: "Scan project structure", status: "in_progress" },
-  { content: "Run targeted file search", status: "pending" },
-  { content: "Map dependencies", status: "pending" },
-  { content: "Detect conventions", status: "pending" },
-  { content: "Generate codebase map (if full scan)", status: "pending" },
-  { content: "Generate recon report", status: "pending" }
+[
+  { subject: "Scan project structure" },
+  { subject: "Run targeted file search" },
+  { subject: "Map dependencies" },
+  { subject: "Detect conventions" },
+  { subject: "Generate codebase map (if full scan)" },
+  { subject: "Generate recon report" }
 ]
 ```
 
@@ -193,7 +195,7 @@ graph LR
 
 ### Phase 6: Generate Report
 
-Produce structured output for the calling skill. Update TodoWrite to completed.
+Produce structured output for the calling skill. Mark the tasks completed.
 
 ## Constraints
 
@@ -221,7 +223,7 @@ Produce structured output for the calling skill. Update TodoWrite to completed.
 - `build` (L1): Phase 1 UNDERSTAND — scan codebase
 - `team` (L1): understand full project scope
 - `guardian` (L2): scan changed files for security issues
-- `readiness` (L2): find affected code paths
+- `verification` (L2): find affected code paths (review stage regression check)
 - `onboard` (L2): full project scan for CLAUDE.md generation
 - `autopsy` (L2): comprehensive health assessment
 - `surgeon` (L2): scan module before refactoring

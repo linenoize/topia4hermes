@@ -1,6 +1,6 @@
 ---
 name: guardian
-description: "Automated security gatekeeper. Blocks unsafe code before commit — secret scanning, OWASP top 10, dependency audit, permission checks. A GATE, not a suggestion."
+description: "Use when code about to be committed or deployed touches auth, secrets, user input, shell commands or new dependencies. Scans for leaked secrets, OWASP top 10 issues and risky packages; a BLOCK verdict stops the commit. Unlike the built-in /security-review, it is the gate that build, deploy and launch run."
 metadata:
   author: topia
   version: "1.0.0"
@@ -19,13 +19,13 @@ metadata:
 Automated security gatekeeper that blocks unsafe code BEFORE commit. Unlike `review` which suggests improvements, guardian is a hard gate — it BLOCKS on critical findings. Runs secret scanning, OWASP top 10 pattern detection, dependency auditing, and destructive command checks. Escalates to opus for deep security audit when critical patterns detected.
 
 <HARD-GATE>
-If status is BLOCK, output the report and STOP. Do not hand off to commit. The calling skill (`build`, `readiness`, `deploy`) must halt until the developer fixes all BLOCK findings and re-runs guardian.
+If status is BLOCK, output the report and STOP. Do not hand off to commit. The calling skill (`build`, `verification`, `deploy`) must halt until the developer fixes all BLOCK findings and re-runs guardian.
 </HARD-GATE>
 
 ## Triggers
 
 - Called automatically by `build` before commit phase
-- Called by `readiness` as security sub-check
+- Called by `verification` as security sub-check (review stage)
 - Called by `deploy` before deployment
 - `/topia guardian` — manual security scan
 - Auto-trigger: when `.env`, auth files, or security-critical code is modified
@@ -45,7 +45,7 @@ If status is BLOCK, output the report and STOP. Do not hand off to commit. The c
 - `build` (L1): auto-trigger before commit phase
 - `review` (L2): when security-critical code detected
 - `deploy` (L2): pre-deployment security check
-- `readiness` (L2): security sub-check in quality gate
+- `verification` (L2): security sub-check in the pre-commit review stage
 - `audit` (L2): Phase 2 full security audit
 - `incident` (L2): security dimension check during incident response
 - `review-intake` (L2): security scan on code submitted for structured review
@@ -174,11 +174,11 @@ Classify security-sensitive defaults as **fail-open** (dangerous) or **fail-secu
 
 ### Step 4.8 — Agentic Security Scan
 
-If `.topia/` directory exists, invoke `topia:integrity-check` (L3) on all `.topia/*.md` files and any state files in the commit diff.
+If `.topia/` directory exists, run integrity-check (L3; hidden skill, so read `${CLAUDE_SKILL_DIR}/../integrity-check/SKILL.md` and follow it) on all `.topia/*.md` files and any state files in the commit diff.
 
 ```
-REQUIRED SUB-SKILL: topia:integrity-check
-→ Invoke integrity-check on all .topia/*.md files + any state files in the commit diff.
+REQUIRED: integrity-check — ${CLAUDE_SKILL_DIR}/../integrity-check/SKILL.md
+→ Follow it on all .topia/*.md files + any state files in the commit diff.
 → Capture: status (CLEAN | SUSPICIOUS | TAINTED), findings list.
 ```
 
@@ -311,7 +311,7 @@ Aggregate all findings across all steps. Verdict rules:
 - Only **INFO** → overall status = **PASS**.
 
 <HARD-GATE>
-If status is BLOCK, output the report and STOP. The calling skill (build, preflight, deploy) must halt until all BLOCK findings are fixed and guardian re-runs.
+If status is BLOCK, output the report and STOP. The calling skill (build, verification, deploy) must halt until all BLOCK findings are fixed and guardian re-runs.
 </HARD-GATE>
 
 ### WARN Acknowledgment Protocol
@@ -336,7 +336,7 @@ Generate domain-specific pre-commit hook scripts when requested. Load reference 
 ## Output Format
 
 ```
-## Sentinel Report
+## Guardian Report
 - **Status**: PASS | WARN | BLOCK
 - **Files Scanned**: [count]
 - **Findings**: [count by severity]
@@ -371,7 +371,7 @@ BLOCKED — 2 critical findings must be resolved before commit.
 
 | Artifact | Format | Location |
 |----------|--------|----------|
-| Sentinel report | Markdown | inline (chat output) |
+| Guardian report | Markdown | inline (chat output) |
 | Security findings (BLOCK/WARN/INFO) | Markdown list | inline |
 | Block/allow verdict | Text (`PASS \| WARN \| BLOCK`) | inline |
 | Supply chain risk assessment | Markdown table | inline |

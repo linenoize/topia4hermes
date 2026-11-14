@@ -1,6 +1,6 @@
 ---
 name: org-config
-description: "Team org policy setup for Topia. Use during /topia finalize or when configuring .topia/org/org.md — asks structured questions and writes team roles, policies, approval flows, and governance level so guardian and readiness enforce your rules."
+description: "Use when setting up or changing team policy for Topia in .topia/org/org.md: roles, approval flows, governance level. Runs as part of /topia finalize; guardian and verification enforce what it writes."
 metadata:
   author: topia
   version: "1.0.0"
@@ -15,7 +15,7 @@ metadata:
 
 ## Purpose
 
-Turn `.topia/org/org.md` from a template into **your team's real policy file**. `guardian` and `readiness` read this at compile time and inject an `<ORG-POLICY>` block into their hooks — so commit-time gates match how your team actually works.
+Turn `.topia/org/org.md` from a template into **your team's real policy file**. `guardian` and `verification` read this (directly in Claude Code; other platforms also get an injected `<ORG-POLICY>` block at compile time) — so commit-time gates match how your team actually works.
 
 **For teams:** commit `org/org.md` (under `.topia/`) so every developer and every agent session shares the same rules. Solo devs can still run this to set governance level and security defaults.
 
@@ -25,9 +25,16 @@ Do NOT delete any of the five required sections: `## Teams`, `## Roles`, `## Pol
 
 ## Triggers
 
-- `/topia org-config` — manual invocation
+- `/topia:org-config` — manual invocation (also `/topia org-config`)
 - Called from `/topia finalize` after machine-wide setup (Step 2b)
+- First time in a new repo: replace the template placeholders with real team data
+- Policy change: re-run, or edit `org.md` by hand, then refresh hooks
 - Auto-suggest when `org.md` still contains template placeholders (`_(lead`, `Organization: topia`, `_(team slug)_`)
+
+## Flags
+
+- `--force` — overwrite `org.md` even if it looks customized, without asking first
+- `--dry-run` — run the interview and show the planned changes, but write nothing (no `org.md`, no `.configured`)
 
 ## Calls (outbound)
 
@@ -35,7 +42,7 @@ Do NOT delete any of the five required sections: `## Teams`, `## Roles`, `## Pol
 
 ## Called By (inbound)
 
-- User: `/topia org-config`
+- User: `/topia:org-config` or `/topia org-config`
 - `/topia finalize` command flow
 - `tut` skill when user asks to configure team policy
 
@@ -54,13 +61,13 @@ Reviewers: <N> required | security files need security reviewer: <yes|no>
 Deploy: <window> | staging before prod: <yes|no>
 
 Written: .topia/org/org.md
-Teams: commit .topia/org/ so guardian/readiness enforce these rules in CI.
+Teams: commit .topia/org/ so guardian/verification enforce these rules in CI.
 
 Refresh hooks if gates feel stale:
   node "<topia>/compiler/bin/topia.js" setup --global --preset gentle --yes
 ```
 
-After writing, tell the user to re-run hook compile if they use terminal hooks:
+After writing, if dispatch hooks are installed, tell the user to re-run hook compile so the `<ORG-POLICY>` block updates:
 
 ```bash
 node "<topia>/compiler/bin/topia.js" setup --global --preset gentle --yes
@@ -123,9 +130,11 @@ Skip questions the user marks "defaults" — use Moderate governance and single-
 
 Use `Write` or `Edit` — preserve markdown tables and section order.
 
+With `--dry-run`, show the planned `org.md` changes as a diff or summary instead, skip the write and Step 4's `.configured` file, and stop after the summary.
+
 ### Step 4 — Confirm and flag
 
-1. Print a **short summary**: governance level, reviewers, deploy rules, what guardian/readiness will now enforce.
+1. Print a **short summary**: governance level, reviewers, deploy rules, what guardian/verification will now enforce.
 2. Write `.topia/org/.configured` with ISO timestamp.
 3. Remind teams: `git add .topia/org/` and commit so CI and teammates share policy.
 4. Link [`docs/ORG-CONFIG.md`](../../docs/ORG-CONFIG.md) for later edits.
@@ -145,7 +154,7 @@ Use `Write` or `Edit` — preserve markdown tables and section order.
 | Editing `org.md` alone does not refresh hooks | HIGH | Tell user to run `topia setup --global --preset gentle --yes` or `/topia finalize` after save |
 | Plugin cache `org.md` is a template, not live policy | MEDIUM | Always resolve project `.topia/org/org.md`; link `docs/ORG-CONFIG.md` for manual edits |
 | Solo dev picks "multi-team" by mistake | LOW | Round A shapes later questions — offer "use defaults" to skip team tables |
-| Governance level mismatch with team appetite | MEDIUM | Summarize what guardian/readiness will block before writing |
+| Governance level mismatch with team appetite | MEDIUM | Summarize what guardian/verification will block before writing |
 
 ## Done When
 
